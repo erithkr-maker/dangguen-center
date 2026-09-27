@@ -112,7 +112,25 @@ function openAd(){modal('광고 기록',`<form onsubmit="submitAd(event)"><div c
 function submitAd(e){e.preventDefault();let f=Object.fromEntries(new FormData(e.target));db.ads.push({...f,id:'A'+Date.now(),cost:n(f.cost)});closeModal();save()}
 function backup(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='당근판매센터_백업_'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
 function restore(file){if(!file)return;let r=new FileReader();r.onload=()=>{try{let incoming=normalize(JSON.parse(r.result));localStorage.setItem(SAFE,JSON.stringify(db));if(!confirm('선택한 백업으로 복원할까요?\n현재 데이터는 안전백업 키에 먼저 보관됩니다.'))return;db=incoming;save();alert('복원 완료');}catch(e){alert('올바른 JSON 백업 파일이 아닙니다.')}};r.readAsText(file)}
-document.getElementById('profitMonth').value=monthNow();renderAll();
+document.getElementById('profitMonth').value=monthNow();migrateVerifiedOriginalOnce();renderAll();
+
+
+function migrateVerifiedOriginalOnce(){
+  const flag='danggeunVerifiedOriginalV8';
+  if(localStorage.getItem(flag)==='done') return;
+  try{
+    const current=localStorage.getItem(KEY);
+    if(current) localStorage.setItem(KEY+'_before_v8_'+Date.now(),current);
+    db.products=arr(db.products); db.orders=arr(db.orders); db.customers=arr(db.customers); db.ads=arr(db.ads); db.cs=arr(db.cs);
+    ORIGINAL_BACKUP.products.forEach(p=>{if(!db.products.some(x=>(x.name||x.product||'')===p.name&&(x.option||'')===p.option))db.products.push(JSON.parse(JSON.stringify(p)))});
+    ORIGINAL_BACKUP.orders.forEach(o=>{if(!db.orders.some(x=>String(x.id||'')===String(o.id||'')))db.orders.push(JSON.parse(JSON.stringify(o)))});
+    ORIGINAL_BACKUP.customers.forEach(c=>{if(!db.customers.some(x=>(x.name||x.customer||'')===c.name))db.customers.push(JSON.parse(JSON.stringify(c)))});
+    ORIGINAL_BACKUP.ads.forEach(a=>{if(!db.ads.some(x=>String(x.id||'')===String(a.id||'')))db.ads.push(JSON.parse(JSON.stringify(a)))});
+    syncCustomersFromOrders();
+    localStorage.setItem(KEY,JSON.stringify(db));
+    localStorage.setItem(flag,'done');
+  }catch(e){console.error('v8 migration failed',e)}
+}
 
 function restoreOriginalBackup(){
   if(!confirm('기존 판매관리센터 원본 자료를 복원할까요?\n현재 새 사이트 자료는 먼저 자동 백업됩니다.')) return;
