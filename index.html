@@ -118,7 +118,7 @@ function openAd(){modal('광고 기록',`<form onsubmit="submitAd(event)"><div c
 function submitAd(e){e.preventDefault();let f=Object.fromEntries(new FormData(e.target));db.ads.push({...f,id:'A'+Date.now(),cost:n(f.cost)});closeModal();save()}
 function backup(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='당근판매센터_백업_'+today()+'.json';a.click();URL.revokeObjectURL(a.href)}
 function restore(file){if(!file)return;let r=new FileReader();r.onload=()=>{try{let incoming=normalize(JSON.parse(r.result));localStorage.setItem(SAFE,JSON.stringify(db));if(!confirm('선택한 백업으로 복원할까요?\n현재 데이터는 안전백업 키에 먼저 보관됩니다.'))return;db=incoming;save();alert('복원 완료');}catch(e){alert('올바른 JSON 백업 파일이 아닙니다.')}};r.readAsText(file)}
-document.getElementById('profitMonth').value=monthNow();migrateVerifiedOriginalOnce();repairV8LegacyDuplicatesOnce();renderAll();
+document.getElementById('profitMonth').value=monthNow();migrateVerifiedOriginalOnce();repairV8LegacyDuplicatesOnce();repairSalesV10Once();renderAll();
 
 
 function migrateVerifiedOriginalOnce(){
@@ -182,6 +182,46 @@ function repairV8LegacyDuplicatesOnce(){
     localStorage.setItem(KEY,JSON.stringify(db));
     localStorage.setItem(flag,'done');
   }catch(e){ console.error('v9 repair failed',e); }
+}
+
+
+function repairSalesV10Once(){
+  const flag='danggeunV10AuthoritativeRepair';
+  if(localStorage.getItem(flag)==='done') return;
+  try{
+    const current=localStorage.getItem(KEY);
+    if(current) localStorage.setItem(KEY+'_before_v10_'+Date.now(), current);
+
+    // 2026-09-27까지의 과거 주문은 검증된 원본 백업 22건으로 정확히 복원.
+    // 9/28 이후 새로 입력한 주문은 그대로 보존.
+    const newer=arr(db.orders).filter(o=>{
+      const d=String(o.date||o.orderDate||'').slice(0,10);
+      return d>'2026-09-27';
+    });
+    db.orders=JSON.parse(JSON.stringify(ORIGINAL_BACKUP.orders)).concat(newer);
+
+    // 과거 광고도 검증된 원본으로 복원. 9/28 이후 새 광고는 보존.
+    const newerAds=arr(db.ads).filter(a=>{
+      const d=String(a.date||a.start||a.startDate||a.createdAt||'').slice(0,10);
+      return d>'2026-09-27';
+    });
+    db.ads=JSON.parse(JSON.stringify(ORIGINAL_BACKUP.ads)).concat(newerAds);
+
+    // 상품은 원본에 없는 새 상품만 보존
+    const baseProducts=JSON.parse(JSON.stringify(ORIGINAL_BACKUP.products));
+    arr(db.products).forEach(p=>{
+      const exists=baseProducts.some(x=>
+        String(x.name||x.product||'').trim()===String(p.name||p.product||'').trim() &&
+        String(x.option||'').trim()===String(p.option||'').trim()
+      );
+      if(!exists) baseProducts.push(p);
+    });
+    db.products=baseProducts;
+
+    syncCustomersFromOrders();
+    localStorage.setItem(KEY,JSON.stringify(db));
+    localStorage.setItem(flag,'done');
+  }catch(e){ console.error('v10 repair failed',e); }
 }
 
 function restoreOriginalBackup(){
