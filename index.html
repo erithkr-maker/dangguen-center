@@ -5,7 +5,7 @@
 <section id="home" class="page active"><div class="section-title"><h2>오늘 장사, 한눈에</h2><button class="btn primary" onclick="openOrder()">+ 새 주문</button></div><div class="grid kpis"><div class="card kpi"><div class="label">이번 달 매출</div><div class="value money" id="kSales">0원</div></div><div class="card kpi"><div class="label">이번 달 최종 순이익</div><div class="value money" id="kProfit">0원</div></div><div class="card kpi"><div class="label">이번 달 광고비</div><div class="value money" id="kAds">0원</div></div><div class="card kpi"><div class="label">오늘 처리할 주문</div><div class="value" id="kTasks">0건</div></div></div>
 <div class="section-title"><h2>📦 오늘 처리할 주문</h2><span class="muted">배송완료는 자동 제외</span></div><div class="card" id="taskList"></div>
 <div class="section-title"><h2>빠른 등록</h2></div><div class="card row"><button class="btn primary" onclick="openOrder()">+ 새 주문 등록</button><button class="btn" onclick="openProduct()">상품 추가</button><button class="btn" onclick="go('customers')">고객 보기</button><button class="btn" onclick="go('profit')">월별 수익</button></div></section>
-<section id="orders" class="page"><div class="section-title"><h2>🧾 주문 관리</h2><button class="btn primary" onclick="openOrder()">+ 주문 등록</button></div><div class="card"><div class="toolbar"><input class="search" id="orderSearch" placeholder="고객·상품·송장 검색" oninput="renderOrders()"><select id="orderFilter" style="max-width:160px" onchange="renderOrders()"><option value="">전체 상태</option><option>신규주문</option><option>발주완료</option><option>배송중</option><option>배송완료</option><option>취소</option><option>환불</option></select></div><div class="tablewrap"><table><thead><tr><th>고객명</th><th>연락처</th><th>주문횟수</th><th>누적구매액</th><th>첫 구매일</th><th>최근 주문일</th><th>구분</th><th></th></tr></thead><tbody id="customerRows"></tbody></table></div></div></section>
+<section id="orders" class="page"><div class="section-title"><h2>🧾 주문 관리</h2><button class="btn primary" onclick="openOrder()">+ 주문 등록</button></div><div class="card"><div class="toolbar"><input class="search" id="orderSearch" placeholder="고객·상품·송장 검색" oninput="renderOrders()"><select id="orderFilter" style="max-width:160px" onchange="renderOrders()"><option value="">전체 상태</option><option>신규주문</option><option>발주완료</option><option>배송중</option><option>배송완료</option><option>취소</option><option>환불</option></select></div><div class="tablewrap"><table><thead><tr><th>고객</th><th>전화번호</th><th>주소</th><th>주문횟수</th><th>누적구매액</th><th>최근구매</th><th>등급</th><th>관리</th></tr></thead><tbody id="customerRows"></tbody></table></div></div></section>
 <section id="products" class="page"><div class="section-title"><h2>📦 상품 관리</h2><button class="btn primary" onclick="openProduct()">+ 상품 추가</button></div><div class="card tablewrap"><table><thead><tr><th>상품</th><th>옵션</th><th>판매가</th><th>원가</th><th>배송비</th><th>상태</th></tr></thead><tbody id="productRows"></tbody></table></div></section>
 <section id="ads" class="page"><div class="section-title"><h2>📣 광고 관리</h2><button class="btn primary" onclick="openAd()">+ 광고 기록</button></div><div class="grid kpis"><div class="card kpi"><div class="label">이번 달 광고비</div><div class="value" id="aMonthSpend">0원</div></div><div class="card kpi"><div class="label">이번 달 매출</div><div class="value" id="aMonthSales">0원</div></div><div class="card kpi"><div class="label">광고 차감 후 순이익</div><div class="value" id="aNetProfit">0원</div></div></div><div class="section-title"><h2>광고 기록</h2></div><div class="card tablewrap"><table><thead><tr><th>날짜</th><th>광고명</th><th>상품</th><th>광고비</th><th>상태</th></tr></thead><tbody id="adRows"></tbody></table></div></section>
 <section id="cs" class="page"><div class="section-title"><h2>💬 문의·CS</h2></div><div class="card tablewrap"><table><thead><tr><th>접수일</th><th>고객</th><th>관련 주문</th><th>문의유형</th><th>문의내용</th><th>처리상태</th></tr></thead><tbody id="csRows"></tbody></table></div></section>
@@ -133,40 +133,70 @@ function uniqueCustomers(){
 function renderCustomers(){
   let q=(document.getElementById('customerSearch')?.value||'').trim().toLowerCase();
   let rows=uniqueCustomers().map(c=>({c,s:customerStats(c)}))
-    .filter(x=>{
-      const c=x.c;
-      return !q || [c.name,c.phone,c.address].some(v=>String(v||'').toLowerCase().includes(q));
-    })
+    .filter(x=>!q||[x.c.name,x.c.phone,x.c.address].some(v=>String(v||'').toLowerCase().includes(q)))
     .sort((a,b)=>(b.s.last||'').localeCompare(a.s.last||''));
-
+  window._customerViewRows=rows;
   let body=document.getElementById('customerRows');
   if(!body)return;
-  body.innerHTML=rows.map(({c,s})=>{
-    const grade=s.count>=2?'재구매':'신규';
-    return `<tr>
+  body.innerHTML=rows.map(({c,s},i)=>`
+    <tr>
       <td><b>${esc(c.name||'')}</b>${s.repeat?'<div class="badge">재구매</div>':''}</td>
       <td>${esc(c.phone||'-')}</td>
-      <td>${s.count}건</td>
+      <td>${esc(c.address||'-')}</td>
+      <td>${s.count}회</td>
       <td><b>${won(s.total)}</b></td>
-      <td>${esc(s.first||'-')}</td>
       <td>${esc(s.last||'-')}</td>
-      <td>${grade}</td>
-      <td><button class="btn small" onclick="showCustomerOrders('${esc(customerIdentity(c))}')">주문내역</button></td>
-    </tr>`;
-  }).join('')||'<tr><td colspan="8" class="empty">고객이 없습니다.</td></tr>';
+      <td><span class="badge">${s.repeat?'재구매':'신규'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn small" onclick="editCustomerByIndex(${i})">수정</button>
+        <button class="btn small" onclick="showCustomerOrdersByIndex(${i})">주문내역</button>
+      </td>
+    </tr>`).join('')||'<tr><td colspan="8" class="empty">고객이 없습니다.</td></tr>';
 }
-function showCustomerOrders(key){
-  const c=uniqueCustomers().find(x=>customerIdentity(x)===key);
-  if(!c)return;
-  const s=customerStats(c);
+function editCustomerByIndex(i){
+  const row=(window._customerViewRows||[])[i]; if(!row)return;
+  const c=row.c;
+  modal('고객정보 수정',`
+    <div class="formgrid">
+      <label>고객명<input id="ecName" value="${esc(c.name||'')}"></label>
+      <label>전화번호<input id="ecPhone" value="${esc(c.phone||'')}"></label>
+      <label class="wide">주소<input id="ecAddress" value="${esc(c.address||'')}"></label>
+      <label class="wide">메모<textarea id="ecMemo" rows="3">${esc(c.memo||'')}</textarea></label>
+    </div>
+    <div class="actions"><button class="btn" onclick="closeModal()">취소</button><button class="btn primary" onclick="saveCustomerEdit(${i})">저장</button></div>
+  `);
+}
+function saveCustomerEdit(i){
+  const row=(window._customerViewRows||[])[i]; if(!row)return;
+  const c=row.c, oldName=String(c.name||'').trim(), oldPhone=normPhone(c.phone);
+  const name=document.getElementById('ecName').value.trim();
+  const phone=document.getElementById('ecPhone').value.trim();
+  const address=document.getElementById('ecAddress').value.trim();
+  const memo=document.getElementById('ecMemo').value.trim();
+  if(!name){alert('고객명을 입력해주세요.');return}
+  c.name=name;c.phone=phone;c.address=address;c.memo=memo;
+  // 기존 주문에도 고객 연락처/주소를 반영. 이름 변경은 이 고객의 주문에만 반영.
+  arr(db.orders).forEach(o=>{
+    const samePhone=oldPhone && normPhone(o.phone)===oldPhone;
+    const sameName=!oldPhone && String(o.customer||o.customerName||o.name||'').trim()===oldName;
+    if(samePhone||sameName){
+      o.customer=name;
+      o.phone=phone;
+      o.address=address;
+    }
+  });
+  save(); closeModal(); renderAll();
+}
+function showCustomerOrdersByIndex(i){
+  const row=(window._customerViewRows||[])[i]; if(!row)return;
+  const c=row.c, s=customerStats(c);
+  const rows=s.orders.slice().sort((a,b)=>dateOf(b).localeCompare(dateOf(a))).map(o=>`
+    <tr><td>${esc(dateOf(o))}</td><td>${esc(productOf(o))}<div class="muted">${esc(optionOf(o))}</div></td>
+    <td>${won(amountOf(o))}</td><td>${esc(statusOf(o))}</td></tr>`).join('');
   modal((c.name||'고객')+' 주문내역',
-    `<div class="notice">총 ${s.count}건 · 누적구매 ${won(s.total)}${s.repeat?' · 재구매 고객':''}</div>`+
-    `<div class="tablewrap"><table><thead><tr><th>주문일</th><th>상품/옵션</th><th>결제금액</th><th>상태</th></tr></thead><tbody>`+
-    s.orders.slice().sort((a,b)=>dateOf(b).localeCompare(dateOf(a))).map(o=>
-      `<tr><td>${esc(dateOf(o))}</td><td>${esc(productOf(o))}<div class="muted">${esc(optionOf(o))}</div></td><td>${won(amountOf(o))}</td><td>${esc(statusOf(o))}</td></tr>`
-    ).join('')+
-    `</tbody></table></div>`
-  );
+    `<div class="notice">총 ${s.count}건 · 누적구매 ${won(s.total)}${s.repeat?' · 재구매 고객':''}</div>
+     <div class="tablewrap"><table><thead><tr><th>주문일</th><th>상품/옵션</th><th>결제금액</th><th>상태</th></tr></thead>
+     <tbody>${rows||'<tr><td colspan="4" class="empty">주문내역이 없습니다.</td></tr>'}</tbody></table></div>`);
 }
 
 function renderMore(){document.getElementById('productRows').innerHTML=db.products.map(p=>`<tr><td><b>${esc(p.name||p.product||'')}</b></td><td>${esc(p.option||'')}</td><td>${won(p.price)}</td><td>${won(p.cost)}</td><td>${won(p.shipping||p.shippingCost)}</td><td><span class="badge">${esc(p.status||'판매중')}</span></td></tr>`).join('')||'<tr><td colspan="6" class="empty">상품이 없습니다.</td></tr>';document.getElementById('adRows').innerHTML=db.ads.map(a=>`<tr><td>${esc(adDate(a))}</td><td><b>${esc(a.name||a.adName||'')}</b></td><td>${esc(a.product||'')}</td><td>${won(adCost(a))}</td><td><span class="badge">${esc(a.status||'')}</span></td></tr>`).join('')||'<tr><td colspan="5" class="empty">광고 기록이 없습니다.</td></tr>'}
