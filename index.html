@@ -7,7 +7,7 @@
 <div class="section-title"><h2>빠른 등록</h2></div><div class="card row"><button class="btn primary" onclick="openOrder()">+ 새 주문 등록</button><button class="btn" onclick="openProduct()">상품 추가</button><button class="btn" onclick="go('customers')">고객 보기</button><button class="btn" onclick="go('profit')">월별 수익</button></div></section>
 <section id="orders" class="page"><div class="section-title"><h2>🧾 주문 관리</h2><button class="btn primary" onclick="openOrder()">+ 주문 등록</button></div><div class="card"><div class="toolbar"><input class="search" id="orderSearch" placeholder="고객·상품·송장 검색" oninput="renderOrders()"><select id="orderFilter" style="max-width:160px" onchange="renderOrders()"><option value="">전체 상태</option><option>신규주문</option><option>발주완료</option><option>배송중</option><option>배송완료</option><option>취소</option><option>환불</option></select></div><div class="tablewrap"><table><thead><tr><th>고객명</th><th>연락처</th><th>주문횟수</th><th>누적구매액</th><th>첫 구매일</th><th>최근 주문일</th><th>구분</th><th></th></tr></thead><tbody id="customerRows"></tbody></table></div></div></section>
 <section id="products" class="page"><div class="section-title"><h2>📦 상품 관리</h2><button class="btn primary" onclick="openProduct()">+ 상품 추가</button></div><div class="card tablewrap"><table><thead><tr><th>상품</th><th>옵션</th><th>판매가</th><th>원가</th><th>배송비</th><th>상태</th></tr></thead><tbody id="productRows"></tbody></table></div></section>
-<section id="ads" class="page"><div class="section-title"><h2>📣 광고 관리</h2><button class="btn primary" onclick="openAd()">+ 광고 기록</button></div><div class="grid kpis"><div class="card kpi"><div class="label">이번 달 광고비</div><div class="value" id="aMonthSpend">0원</div></div><div class="card kpi"><div class="label">이번 달 매출</div><div class="value" id="aMonthSales">0원</div></div><div class="card kpi"><div class="label">광고 차감 후 순이익</div><div class="value" id="aNetProfit">0원</div></div></div><div class="section-title"><h2>광고 기록</h2></div><div class="card tablewrap"><table><thead><tr><th>날짜</th><th>광고명</th><th>상품</th><th>광고비</th><th>상태</th></tr></thead><tbody id="adRows"></tbody></table></div></section>
+<section id="ads" class="page"><div class="section-title"><h2>📣 광고 관리</h2><button class="btn primary" onclick="openAd()">+ 광고 기록</button></div><div class="grid kpis"><div class="card kpi"><div class="label">이번 달 광고비</div><div class="value" id="aMonthSpend">0원</div></div><div class="card kpi"><div class="label">이번 달 매출</div><div class="value" id="aMonthSales">0원</div></div><div class="card kpi"><div class="label">광고 차감 후 순이익</div><div class="value" id="aNetProfit">0원</div></div></div><div class="section-title"><h2>광고 기록</h2></div><div class="card tablewrap"><table><thead><tr><th>날짜</th><th>광고명</th><th>상품</th><th>광고비</th><th>상태</th><th>관리</th></tr></thead><tbody id="adRows"></tbody></table></div></section>
 <section id="cs" class="page"><div class="section-title"><h2>💬 문의·CS</h2></div><div class="card tablewrap"><table><thead><tr><th>접수일</th><th>고객</th><th>관련 주문</th><th>문의유형</th><th>문의내용</th><th>처리상태</th></tr></thead><tbody id="csRows"></tbody></table></div></section>
 <section id="backup" class="page"><div class="section-title"><h2>💾 백업·복원</h2></div><div class="card dangerzone"><div class="notice"><b>기존 자료 보호:</b> 기존 <code>danggeunSalesCenterV1</code> 데이터를 먼저 읽고 같은 키를 사용합니다. 초기화 버튼은 없습니다.</div><div class="row" style="margin-top:12px"><button class="btn primary" onclick="backup()">전체 JSON 백업</button><button class="btn primary" type="button" onclick="restoreOriginalBackup()">📥 원본자료 22건 복원</button><label class="btn" style="cursor:pointer">JSON 복원<input type="file" accept="application/json,.json" style="display:none" onchange="restore(this.files[0])"></label></div><div class="footer-note">복원 전 현재 데이터가 자동으로 별도 안전백업 키에 보관됩니다.</div></div></section></main><nav class="nav"><button class="active" data-page="home" onclick="go('home')">🏠<br>대시보드</button><button data-page="products" onclick="go('products')">📦<br>상품</button><button data-page="orders" onclick="go('orders')">🧾<br>주문</button><button data-page="customers" onclick="go('customers')">👩<br>고객</button><button data-page="ads" onclick="go('ads')">📣<br>광고</button><button data-page="cs" onclick="go('cs')">💬<br>문의·CS</button><button data-page="profit" onclick="go('profit')">💰<br>수익</button><button data-page="backup" onclick="go('backup')">💾<br>백업</button></nav>
 <div class="modal" id="modal"><div class="modalbox"><div class="modalhead"><h3 id="modalTitle"></h3><button class="x" onclick="closeModal()">×</button></div><div id="modalBody"></div></div></div>
@@ -438,5 +438,50 @@ function v15History(i){
      <tbody>${trs||'<tr><td colspan="5" class="empty">주문내역이 없습니다.</td></tr>'}</tbody></table></div>`);
 }
 /* ===== end v15 patch ===== */
+
+
+/* ===== v16 ad edit/delete patch ===== */
+function v16AdRows(){
+  return arr(db.ads).slice().sort((a,b)=>String(b.start||b.date||'').localeCompare(String(a.start||a.date||'')));
+}
+function renderAdSummary(){
+  const m=monthNow(), ads=v16AdRows(), spend=monthAds(m), x=metrics(m);
+  setText('aSpend',won(spend)); setText('aMonthSales',won(x.sales)); setText('aNetProfit',won(x.profit));
+  const body=document.getElementById('adRows'); if(!body)return;
+  window.v16Ads=ads;
+  body.innerHTML=ads.map((a,i)=>`<tr>
+    <td>${esc(String(a.start||a.date||'').slice(0,10))}</td>
+    <td><b>${esc(a.name||a.adName||'')}</b></td>
+    <td>${esc(a.product||'')}</td>
+    <td>${won(adCost(a))}</td>
+    <td><span class="badge">${esc(a.status||'')}</span></td>
+    <td style="white-space:nowrap"><button class="btn small" onclick="v16EditAd(${i})">수정</button> <button class="btn small" onclick="v16DeleteAd(${i})">삭제</button></td>
+  </tr>`).join('')||'<tr><td colspan="6" class="empty">광고 기록이 없습니다.</td></tr>';
+}
+function v16EditAd(i){
+  const a=(window.v16Ads||[])[i]; if(!a)return;
+  modal('광고 수정',`<form onsubmit="v16SaveAd(event,${i})"><div class="formgrid">
+    <div><label>날짜</label><input type="date" name="start" value="${esc(String(a.start||a.date||'').slice(0,10))}"></div>
+    <div><label>광고명</label><input name="name" value="${esc(a.name||a.adName||'')}"></div>
+    <div><label>상품</label><input name="product" value="${esc(a.product||'')}"></div>
+    <div><label>광고비</label><input type="number" name="spend" value="${adCost(a)}"></div>
+    <div><label>상태</label><select name="status"><option ${a.status==='진행중'?'selected':''}>진행중</option><option ${a.status==='중단'?'selected':''}>중단</option><option ${a.status==='종료'?'selected':''}>종료</option></select></div>
+    <div class="span2"><label>메모</label><textarea name="memo">${esc(a.memo||'')}</textarea></div>
+  </div><button class="btn primary" style="margin-top:14px">저장</button></form>`);
+}
+function v16SaveAd(e,i){
+  e.preventDefault(); const a=(window.v16Ads||[])[i]; if(!a)return;
+  const f=Object.fromEntries(new FormData(e.target));
+  a.start=f.start; a.date=f.start; a.name=f.name.trim(); a.product=f.product.trim();
+  a.spend=Number(f.spend||0); a.cost=Number(f.spend||0); a.status=f.status; a.memo=f.memo.trim();
+  closeModal(); save();
+}
+function v16DeleteAd(i){
+  const a=(window.v16Ads||[])[i]; if(!a)return;
+  if(!confirm('이 광고 기록을 삭제할까요?'))return;
+  const idx=db.ads.indexOf(a); if(idx>=0)db.ads.splice(idx,1);
+  save();
+}
+/* ===== end v16 ===== */
 
 </script></body></html>
